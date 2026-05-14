@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SabIA — Plataforma Inteligente de Estudos</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-icon">S</span>
+      <span class="logo-text">Sab<span class="logo-ia">IA</span></span>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="#" class="nav-item active" data-tab="dashboard">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </a>
+      <a href="#" class="nav-item" data-tab="cronograma">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Cronograma
+      </a>
+      <a href="#" class="nav-item" data-tab="conteudos">
+        <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        Conteúdos
+      </a>
+      <a href="#" class="nav-item" data-tab="evolucao">
+        <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Evolução
+      </a>
+      <a href="#" class="nav-item" data-tab="lembretes">
+        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        Lembretes
+        <span class="badge-count" id="lembretes-count">0</span>
+      </a>
+      <a href="#" class="nav-item" data-tab="feedback">
+        <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Feedback IA
+      </a>
+    </nav>
+    <div class="sidebar-user" id="sidebar-user">
+      <div class="user-avatar" id="user-avatar">?</div>
+      <div class="user-info">
+        <span class="user-name" id="user-name-sidebar">Aluno</span>
+        <span class="user-sub">Plano Gratuito</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <!-- HEADER -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="menu-btn" id="menu-btn" onclick="toggleSidebar()">☰</button>
+        <h1 class="page-title" id="page-title">Dashboard</h1>
+      </div>
+      <div class="topbar-right">
+        <div class="notif-bell" onclick="showTab('lembretes')">
+          🔔
+          <span class="notif-dot" id="notif-dot" style="display:none"></span>
+        </div>
+        <button class="btn-primary" onclick="openOnboarding()">+ Novo Plano</button>
+      </div>
+    </header>
+
+    <!-- TABS CONTENT -->
+    <div class="content" id="content">
+
+      <!-- DASHBOARD -->
+      <section id="tab-dashboard" class="tab-section active">
+        <div class="welcome-banner" id="welcome-banner">
+          <div>
+            <h2>Bem-vindo(a) ao SabIA! 👋</h2>
+            <p>Configure seu perfil para receber um cronograma personalizado com IA.</p>
+          </div>
+          <button class="btn-primary" onclick="openOnboarding()">Começar agora</button>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="stat-label">Horas estudadas</span>
+            <span class="stat-val" id="stat-horas">0h</span>
+            <span class="stat-delta positive" id="stat-horas-delta">Esta semana</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Tarefas concluídas</span>
+            <span class="stat-val" id="stat-tarefas">0</span>
+            <span class="stat-delta" id="stat-tarefas-delta">de 0 planejadas</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Sequência</span>
+            <span class="stat-val" id="stat-streak">🔥 0</span>
+            <span class="stat-delta">dias seguidos</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Progresso geral</span>
+            <span class="stat-val" id="stat-progresso">0%</span>
+            <div class="mini-bar"><div class="mini-bar-fill" id="mini-bar-fill" style="width:0%"></div></div>
+          </div>
+        </div>
+        <div class="section-row">
+          <div class="card" style="flex:1.5">
+            <h3 class="card-title">Hoje</h3>
+            <ul class="task-list" id="today-tasks">
+              <li class="task-empty">Crie seu cronograma para ver as tarefas de hoje.</li>
+            </ul>
+          </div>
+          <div class="card" style="flex:1">
+            <h3 class="card-title">Próximos lembretes</h3>
+            <ul class="reminder-list" id="reminder-preview"></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- CRONOGRAMA -->
+      <section id="tab-cronograma" class="tab-section">
+        <div class="card">
+          <h3 class="card-title">Gerar Cronograma com IA</h3>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Seu nome</label>
+              <input type="text" id="inp-nome" placeholder="Ex: Maria Silva" />
+            </div>
+            <div class="form-group">
+              <label>Matérias / Disciplinas</label>
+              <input type="text" id="inp-materias" placeholder="Ex: Matemática, Português, História" />
+            </div>
+            <div class="form-group">
+              <label>Horas disponíveis por dia</label>
+              <input type="number" id="inp-horas" placeholder="Ex: 3" min="1" max="12" />
+            </div>
+            <div class="form-group">
+              <label>Objetivo principal</label>
+              <input type="text" id="inp-objetivo" placeholder="Ex: Passar no ENEM, concurso, faculdade" />
+            </div>
+            <div class="form-group">
+              <label>Data da prova / prazo</label>
+              <input type="date" id="inp-data" />
+            </div>
+            <div class="form-group">
+              <label>Nível atual</label>
+              <select id="inp-nivel">
+                <option value="iniciante">Iniciante</option>
+                <option value="intermediario" selected>Intermediário</option>
+                <option value="avancado">Avançado</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn-primary" onclick="gerarCronograma()" id="btn-gerar">
+            ✨ Gerar Cronograma com IA
+          </button>
+        </div>
+        <div class="card" id="cronograma-result" style="display:none">
+          <h3 class="card-title">Seu Cronograma Personalizado</h3>
+          <div id="cronograma-output" class="ia-output"></div>
+        </div>
+      </section>
+
+      <!-- CONTEÚDOS -->
+      <section id="tab-conteudos" class="tab-section">
+        <div class="card">
+          <h3 class="card-title">Conteúdos Personalizados</h3>
+          <div class="form-group" style="margin-bottom:1rem">
+            <label>Sobre qual matéria deseja sugestões?</label>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="inp-conteudo" placeholder="Ex: Frações, Segunda Guerra, Gramática..." style="flex:1" />
+              <button class="btn-primary" onclick="sugerirConteudo()">Sugerir</button>
+            </div>
+          </div>
+        </div>
+        <div class="card" id="conteudo-result" style="display:none">
+          <div id="conteudo-output" class="ia-output"></div>
+        </div>
+      </section>
+
+      <!-- EVOLUÇÃO -->
+      <section id="tab-evolucao" class="tab-section">
+        <div class="card">
+          <h3 class="card-title">Acompanhar Evolução</h3>
+          <div class="form-group" style="margin-bottom:1rem">
+            <label>Descreva como foi seu estudo hoje</label>
+            <textarea id="inp-evolucao" rows="4" placeholder="Ex: Estudei 2 horas de Matemática, fiz exercícios de equações. Tive dificuldade com frações..."></textarea>
+          </div>
+          <button class="btn-primary" onclick="analisarEvolucao()">📊 Analisar com IA</button>
+        </div>
+        <div class="evolucao-chart" id="evolucao-chart">
+          <div class="chart-bars" id="chart-bars"></div>
+          <div class="chart-labels" id="chart-labels"></div>
+        </div>
+        <div class="card" id="evolucao-result" style="display:none">
+          <div id="evolucao-output" class="ia-output"></div>
+        </div>
+      </section>
+
+      <!-- LEMBRETES -->
+      <section id="tab-lembretes" class="tab-section">
+        <div class="card">
+          <h3 class="card-title">Gerenciar Lembretes</h3>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Título do lembrete</label>
+              <input type="text" id="inp-lembrete-titulo" placeholder="Ex: Revisar Matemática" />
+            </div>
+            <div class="form-group">
+              <label>Data e hora</label>
+              <input type="datetime-local" id="inp-lembrete-data" />
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:1rem">
+            <label>Descrição (opcional)</label>
+            <input type="text" id="inp-lembrete-desc" placeholder="Ex: Capítulo 3 — Geometria" />
+          </div>
+          <button class="btn-primary" onclick="adicionarLembrete()">+ Adicionar Lembrete</button>
+        </div>
+        <div class="card">
+          <h3 class="card-title">Seus lembretes</h3>
+          <ul class="reminder-full-list" id="lembretes-lista">
+            <li class="task-empty">Nenhum lembrete ainda.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- FEEDBACK -->
+      <section id="tab-feedback" class="tab-section">
+        <div class="card">
+          <h3 class="card-title">Feedback Instantâneo com IA</h3>
+          <div class="form-group" style="margin-bottom:1rem">
+            <label>Faça uma pergunta ou envie uma resposta para corrigir</label>
+            <textarea id="inp-feedback" rows="5" placeholder="Ex: Resolvi essa equação: 2x + 4 = 10, x = 3. Está certo? Ou: Explique o que é fotossíntese..."></textarea>
+          </div>
+          <button class="btn-primary" onclick="obterFeedback()">🤖 Obter Feedback da IA</button>
+        </div>
+        <div class="card" id="feedback-result" style="display:none">
+          <div id="feedback-output" class="ia-output"></div>
+        </div>
+        <div class="chat-history" id="chat-history"></div>
+      </section>
+
+    </div><!-- /content -->
+  </main>
+
+  <!-- ONBOARDING MODAL -->
+  <div class="modal-overlay" id="onboarding-modal" style="display:none">
+    <div class="modal">
+      <h2>Configure seu perfil 🎓</h2>
+      <p style="color:#aaa;margin-bottom:1.5rem;font-size:14px">Essas informações permitem que a IA crie um plano totalmente personalizado para você.</p>
+      <div class="form-group">
+        <label>Qual é o seu nome?</label>
+        <input type="text" id="modal-nome" placeholder="Seu nome completo" />
+      </div>
+      <div class="form-group">
+        <label>O que você quer alcançar?</label>
+        <input type="text" id="modal-objetivo" placeholder="Ex: Passar no ENEM 2025" />
+      </div>
+      <div class="form-group">
+        <label>Matérias que precisa estudar</label>
+        <input type="text" id="modal-materias" placeholder="Ex: Matemática, Português, Ciências" />
+      </div>
+      <div class="form-group">
+        <label>Horas disponíveis por dia</label>
+        <input type="number" id="modal-horas" placeholder="Ex: 3" min="1" max="16" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeOnboarding()">Agora não</button>
+        <button class="btn-primary" onclick="salvarPerfil()">Salvar e começar ✨</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="loading-overlay" id="loading-overlay" style="display:none">
+    <div class="spinner"></div>
+    <p id="loading-msg">A IA está pensando...</p>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
