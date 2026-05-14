@@ -1,478 +1,389 @@
-// SabIA — app.js (versao corrigida)
-const STATE = {
-  perfil: JSON.parse(localStorage.getItem('sabia_perfil') || 'null'),
-  lembretes: JSON.parse(localStorage.getItem('sabia_lembretes') || '[]'),
-  evolucao: JSON.parse(localStorage.getItem('sabia_evolucao') || '[]'),
-  tarefas: JSON.parse(localStorage.getItem('sabia_tarefas') || '[]'),
-  streak: parseInt(localStorage.getItem('sabia_streak') || '0'),
+// SabIA app.js
+var STATE = {
+  perfil: null,
+  lembretes: [],
+  evolucao: [],
+  tarefas: [],
+  streak: 0,
   chatHistory: []
 };
 
+try { STATE.perfil = JSON.parse(localStorage.getItem('sabia_perfil') || 'null'); } catch(e){}
+try { STATE.lembretes = JSON.parse(localStorage.getItem('sabia_lembretes') || '[]'); } catch(e){}
+try { STATE.evolucao = JSON.parse(localStorage.getItem('sabia_evolucao') || '[]'); } catch(e){}
+try { STATE.tarefas = JSON.parse(localStorage.getItem('sabia_tarefas') || '[]'); } catch(e){}
+STATE.streak = parseInt(localStorage.getItem('sabia_streak') || '0');
+
 function salvarState() {
-  localStorage.setItem('sabia_perfil', JSON.stringify(STATE.perfil));
-  localStorage.setItem('sabia_lembretes', JSON.stringify(STATE.lembretes));
-  localStorage.setItem('sabia_evolucao', JSON.stringify(STATE.evolucao));
-  localStorage.setItem('sabia_tarefas', JSON.stringify(STATE.tarefas));
-  localStorage.setItem('sabia_streak', STATE.streak);
+  try {
+    localStorage.setItem('sabia_perfil', JSON.stringify(STATE.perfil));
+    localStorage.setItem('sabia_lembretes', JSON.stringify(STATE.lembretes));
+    localStorage.setItem('sabia_evolucao', JSON.stringify(STATE.evolucao));
+    localStorage.setItem('sabia_tarefas', JSON.stringify(STATE.tarefas));
+    localStorage.setItem('sabia_streak', STATE.streak);
+  } catch(e) { console.error('Erro ao salvar:', e); }
 }
 
-// ===== NAVEGACAO =====
+// NAVEGACAO
 function showTab(name) {
-  document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  const section = document.getElementById('tab-' + name);
+  document.querySelectorAll('.tab-section').forEach(function(s) { s.classList.remove('active'); });
+  document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+  var section = document.getElementById('tab-' + name);
   if (section) section.classList.add('active');
-  const navItem = document.querySelector('[data-tab="' + name + '"]');
+  var navItem = document.querySelector('[data-tab="' + name + '"]');
   if (navItem) navItem.classList.add('active');
-  const titles = {
-    dashboard: 'Dashboard', cronograma: 'Cronograma',
-    conteudos: 'Conteudos', evolucao: 'Evolucao',
-    lembretes: 'Lembretes', feedback: 'Feedback IA'
-  };
-  document.getElementById('page-title').textContent = titles[name] || name;
+  var titles = { dashboard:'Dashboard', cronograma:'Cronograma', conteudos:'Conteudos', evolucao:'Evolucao', lembretes:'Lembretes', feedback:'Feedback IA' };
+  var pt = document.getElementById('page-title');
+  if (pt) pt.textContent = titles[name] || name;
 }
 
-document.querySelectorAll('.nav-item').forEach(item => {
-  item.addEventListener('click', (e) => {
-    e.preventDefault();
-    showTab(item.dataset.tab);
-    if (window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('open');
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.nav-item').forEach(function(item) {
+    item.addEventListener('click', function(e) {
+      e.preventDefault();
+      showTab(item.dataset.tab);
+      if (window.innerWidth <= 768) {
+        var sb = document.getElementById('sidebar');
+        if (sb) sb.classList.remove('open');
+      }
+    });
   });
+  atualizarDashboard();
+  if (!STATE.perfil) { setTimeout(openOnboarding, 600); }
+  setInterval(verificarLembretes, 60000);
+  if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
 });
 
 function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('open');
+  var sb = document.getElementById('sidebar');
+  if (sb) sb.classList.toggle('open');
 }
 
-// ===== ONBOARDING =====
+// ONBOARDING
 function openOnboarding() {
-  document.getElementById('onboarding-modal').style.display = 'flex';
+  var m = document.getElementById('onboarding-modal');
+  if (m) m.style.display = 'flex';
 }
 function closeOnboarding() {
-  document.getElementById('onboarding-modal').style.display = 'none';
+  var m = document.getElementById('onboarding-modal');
+  if (m) m.style.display = 'none';
 }
 function salvarPerfil() {
-  const nome = document.getElementById('modal-nome').value.trim();
-  const objetivo = document.getElementById('modal-objetivo').value.trim();
-  const materias = document.getElementById('modal-materias').value.trim();
-  const horas = document.getElementById('modal-horas').value;
-  if (!nome || !objetivo || !materias) {
-    alert('Por favor, preencha todos os campos obrigatorios!');
-    return;
-  }
-  STATE.perfil = { nome, objetivo, materias, horas: horas || '3' };
+  var nome = (document.getElementById('modal-nome').value || '').trim();
+  var objetivo = (document.getElementById('modal-objetivo').value || '').trim();
+  var materias = (document.getElementById('modal-materias').value || '').trim();
+  var horas = document.getElementById('modal-horas').value || '3';
+  if (!nome || !objetivo || !materias) { alert('Preencha todos os campos!'); return; }
+  STATE.perfil = { nome: nome, objetivo: objetivo, materias: materias, horas: horas };
   salvarState();
   closeOnboarding();
   atualizarUI();
   showTab('cronograma');
-  // Pre-preenche o formulario de cronograma
-  document.getElementById('inp-nome').value = nome;
-  document.getElementById('inp-objetivo').value = objetivo;
-  document.getElementById('inp-materias').value = materias;
-  document.getElementById('inp-horas').value = horas || '3';
+  var inp = document.getElementById('inp-nome'); if (inp) inp.value = nome;
+  var ino = document.getElementById('inp-objetivo'); if (ino) ino.value = objetivo;
+  var inm = document.getElementById('inp-materias'); if (inm) inm.value = materias;
+  var inh = document.getElementById('inp-horas'); if (inh) inh.value = horas;
 }
 
-// ===== CHAMADA A IA =====
+// CHAMADA IA
 async function chamarIA(prompt, systemPrompt) {
-  const resp = await fetch('/api/chat', {
+  var resp = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, systemPrompt })
+    body: JSON.stringify({ prompt: prompt, systemPrompt: systemPrompt })
   });
-
-  const data = await resp.json();
-
-  if (!resp.ok) {
-    throw new Error(data.error || 'Erro desconhecido na API');
-  }
-
+  var data = await resp.json();
+  if (!resp.ok) { throw new Error(data.error || 'Erro na API: ' + resp.status); }
+  if (!data.result) { throw new Error('Resposta vazia da IA'); }
   return data.result;
 }
 
 function showLoading(msg) {
-  document.getElementById('loading-msg').textContent = msg || 'A IA esta pensando...';
-  document.getElementById('loading-overlay').style.display = 'flex';
+  var lm = document.getElementById('loading-msg');
+  if (lm) lm.textContent = msg || 'A IA esta pensando...';
+  var lo = document.getElementById('loading-overlay');
+  if (lo) lo.style.display = 'flex';
 }
-
 function hideLoading() {
-  document.getElementById('loading-overlay').style.display = 'none';
+  var lo = document.getElementById('loading-overlay');
+  if (lo) lo.style.display = 'none';
 }
-
 function mostrarErro(elementId, msg) {
-  const el = document.getElementById(elementId);
+  var el = document.getElementById(elementId);
   if (el) {
     el.style.display = 'block';
-    el.innerHTML = '<div style="color:#ef4444;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);padding:12px;border-radius:8px;font-size:14px;">&#9888; ' + msg + '</div>';
+    el.innerHTML = '<div style="color:#ef4444;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);padding:12px 14px;border-radius:8px;font-size:14px;line-height:1.6">⚠️ ' + msg + '</div>';
   }
 }
 
-// ===== CRONOGRAMA =====
+// CRONOGRAMA
 async function gerarCronograma() {
-  const nome = document.getElementById('inp-nome').value.trim();
-  const materias = document.getElementById('inp-materias').value.trim();
-  const horas = document.getElementById('inp-horas').value;
-  const objetivo = document.getElementById('inp-objetivo').value.trim();
-  const data = document.getElementById('inp-data').value;
-  const nivel = document.getElementById('inp-nivel').value;
-
-  if (!nome || !materias || !objetivo) {
-    alert('Preencha nome, materias e objetivo!');
-    return;
-  }
-
-  const btn = document.getElementById('btn-gerar');
-  btn.disabled = true;
+  var nome = (document.getElementById('inp-nome').value || '').trim();
+  var materias = (document.getElementById('inp-materias').value || '').trim();
+  var horas = document.getElementById('inp-horas').value || '3';
+  var objetivo = (document.getElementById('inp-objetivo').value || '').trim();
+  var data = document.getElementById('inp-data').value || 'nao definido';
+  var nivel = document.getElementById('inp-nivel').value || 'intermediario';
+  if (!nome || !materias || !objetivo) { alert('Preencha nome, materias e objetivo!'); return; }
+  var btn = document.getElementById('btn-gerar');
+  if (btn) btn.disabled = true;
   showLoading('Gerando seu cronograma personalizado...');
-
+  var prompt = 'Crie um cronograma de estudos semanal para:' +
+    ' Nome: ' + nome +
+    ', Materias: ' + materias +
+    ', Horas por dia: ' + horas +
+    ', Objetivo: ' + objetivo +
+    ', Prazo: ' + data +
+    ', Nivel: ' + nivel +
+    '. Formate com dias da semana, horarios e dicas. Use emojis.';
+  var sys = 'Voce e o SabIA, assistente educacional. Crie cronogramas praticos e motivadores. Use markdown simples com ### para titulos e **negrito**. Responda em portugues do Brasil.';
   try {
-    const prompt = 'Crie um cronograma de estudos semanal detalhado para:
-' +
-      'Nome: ' + nome + '
-' +
-      'Materias: ' + materias + '
-' +
-      'Horas por dia: ' + (horas || 3) + '
-' +
-      'Objetivo: ' + objetivo + '
-' +
-      'Prazo/prova: ' + (data || 'nao definido') + '
-' +
-      'Nivel: ' + nivel + '
-
-' +
-      'Formate com dias da semana, horarios, materias e dicas praticas. Use emojis para ficar visualmente agradavel. Inclua tambem dicas de tecnicas de estudo (Pomodoro, revisao espacada, etc).';
-
-    const sys = 'Voce e o SabIA, um assistente educacional inteligente. Crie cronogramas praticos, motivadores e realistas. Use markdown simples com titulos (###), negrito (**texto**) e emojis. Adapte ao nivel do aluno. Responda sempre em portugues do Brasil.';
-
-    const result = await chamarIA(prompt, sys);
-
-    const card = document.getElementById('cronograma-result');
-    const output = document.getElementById('cronograma-output');
-    card.style.display = 'block';
-    output.innerHTML = formatarTextoIA(result);
-
-    STATE.tarefas = extrairTarefas(result, materias);
+    var result = await chamarIA(prompt, sys);
+    var card = document.getElementById('cronograma-result');
+    var output = document.getElementById('cronograma-output');
+    if (card) card.style.display = 'block';
+    if (output) output.innerHTML = formatarTextoIA(result);
+    STATE.tarefas = extrairTarefas(materias);
     salvarState();
     atualizarDashboard();
-
-    // Scroll para o resultado
-    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  } catch (e) {
-    mostrarErro('cronograma-result', 'Erro ao conectar com a IA: ' + e.message + '. Verifique se a ANTHROPIC_API_KEY esta configurada no Vercel.');
-    document.getElementById('cronograma-result').style.display = 'block';
+    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch(e) {
+    mostrarErro('cronograma-result', 'Erro: ' + e.message);
+    var cr = document.getElementById('cronograma-result');
+    if (cr) cr.style.display = 'block';
   }
-
-  btn.disabled = false;
+  if (btn) btn.disabled = false;
   hideLoading();
 }
 
-// ===== CONTEUDOS =====
+// CONTEUDOS
 async function sugerirConteudo() {
-  const topico = document.getElementById('inp-conteudo').value.trim();
+  var topico = (document.getElementById('inp-conteudo').value || '').trim();
   if (!topico) { alert('Digite uma materia ou topico!'); return; }
-
   showLoading('Buscando conteudos personalizados...');
-
+  var perfInfo = STATE.perfil ? 'Aluno: ' + STATE.perfil.nome + ', Objetivo: ' + STATE.perfil.objetivo + '.' : '';
+  var prompt = 'Sugira 5 recursos de estudo sobre: ' + topico + '. ' + perfInfo + ' Inclua videos YouTube, sites gratuitos, exercicios e dicas praticas com nomes reais.';
+  var sys = 'Voce e o SabIA, especialista educacional. Sugira recursos gratuitos e de qualidade. Formate em topicos numerados. Responda em portugues do Brasil.';
   try {
-    const perfil = STATE.perfil ? 'Aluno: ' + STATE.perfil.nome + ', Objetivo: ' + STATE.perfil.objetivo + '.' : '';
-    const prompt = 'Sugira 5 recursos de estudo sobre: ' + topico + '. ' + perfil +
-      '
-Inclua: videos no YouTube, sites gratuitos, exercicios e dicas praticas. Seja especifico com nomes de canais e sites reais.';
-    const sys = 'Voce e o SabIA, especialista em educacao. Sugira recursos de qualidade, preferencialmente gratuitos. Formate em topicos numerados com descricoes. Responda sempre em portugues do Brasil.';
-
-    const result = await chamarIA(prompt, sys);
-    const card = document.getElementById('conteudo-result');
-    card.style.display = 'block';
-    document.getElementById('conteudo-output').innerHTML = formatarTextoIA(result);
-    card.scrollIntoView({ behavior: 'smooth' });
-  } catch (e) {
+    var result = await chamarIA(prompt, sys);
+    var card = document.getElementById('conteudo-result');
+    if (card) { card.style.display = 'block'; }
+    var out = document.getElementById('conteudo-output');
+    if (out) out.innerHTML = formatarTextoIA(result);
+    if (card) card.scrollIntoView({ behavior: 'smooth' });
+  } catch(e) {
     mostrarErro('conteudo-result', 'Erro: ' + e.message);
-    document.getElementById('conteudo-result').style.display = 'block';
+    var cr2 = document.getElementById('conteudo-result');
+    if (cr2) cr2.style.display = 'block';
   }
-
   hideLoading();
 }
 
-// ===== EVOLUCAO =====
+// EVOLUCAO
 async function analisarEvolucao() {
-  const texto = document.getElementById('inp-evolucao').value.trim();
+  var texto = (document.getElementById('inp-evolucao').value || '').trim();
   if (!texto) { alert('Descreva como foi seu estudo!'); return; }
-
   showLoading('Analisando sua evolucao...');
-
+  var prompt = 'Analise este relato de estudo e forneça: 1) Resumo do que foi estudado 2) Pontos positivos 3) Areas de melhoria 4) Sugestoes para proxima sessao 5) Mensagem motivacional. Relato: ' + texto;
+  var sys = 'Voce e o SabIA, tutor empatico. Analise com positividade e seja construtivo. Use emojis. Responda em portugues do Brasil.';
   try {
-    const prompt = 'Analise este relato de estudo e forneça:
-1) Resumo do que foi estudado
-2) Pontos positivos
-3) Areas de melhoria
-4) Sugestoes para o proximo estudo
-5) Mensagem motivacional
-
-Relato: ' + texto;
-    const sys = 'Voce e o SabIA, tutor empatico e encorajador. Analise o progresso com positividade. Seja especifico e construtivo. Use emojis e formatacao clara. Responda sempre em portugues do Brasil.';
-
-    const result = await chamarIA(prompt, sys);
-
-    STATE.evolucao.push({
-      data: new Date().toLocaleDateString('pt-BR'),
-      texto: texto,
-      analise: result
-    });
+    var result = await chamarIA(prompt, sys);
+    STATE.evolucao.push({ data: new Date().toLocaleDateString('pt-BR'), texto: texto, analise: result });
     salvarState();
-
-    const card = document.getElementById('evolucao-result');
-    card.style.display = 'block';
-    document.getElementById('evolucao-output').innerHTML = formatarTextoIA(result);
+    var card = document.getElementById('evolucao-result');
+    if (card) card.style.display = 'block';
+    var out = document.getElementById('evolucao-output');
+    if (out) out.innerHTML = formatarTextoIA(result);
     atualizarGrafico();
     atualizarDashboard();
-    card.scrollIntoView({ behavior: 'smooth' });
-  } catch (e) {
+    if (card) card.scrollIntoView({ behavior: 'smooth' });
+  } catch(e) {
     mostrarErro('evolucao-result', 'Erro: ' + e.message);
-    document.getElementById('evolucao-result').style.display = 'block';
+    var er = document.getElementById('evolucao-result');
+    if (er) er.style.display = 'block';
   }
-
   hideLoading();
 }
 
-// ===== LEMBRETES =====
+// LEMBRETES
 function adicionarLembrete() {
-  const titulo = document.getElementById('inp-lembrete-titulo').value.trim();
-  const dataHora = document.getElementById('inp-lembrete-data').value;
-  const desc = document.getElementById('inp-lembrete-desc').value.trim();
-
-  if (!titulo || !dataHora) {
-    alert('Preencha titulo e data/hora!');
-    return;
-  }
-
-  STATE.lembretes.push({ id: Date.now(), titulo, dataHora, desc });
+  var titulo = (document.getElementById('inp-lembrete-titulo').value || '').trim();
+  var dataHora = document.getElementById('inp-lembrete-data').value;
+  var desc = (document.getElementById('inp-lembrete-desc').value || '').trim();
+  if (!titulo || !dataHora) { alert('Preencha titulo e data/hora!'); return; }
+  STATE.lembretes.push({ id: Date.now(), titulo: titulo, dataHora: dataHora, desc: desc });
   salvarState();
-
   document.getElementById('inp-lembrete-titulo').value = '';
   document.getElementById('inp-lembrete-data').value = '';
   document.getElementById('inp-lembrete-desc').value = '';
-
   renderLembretes();
   atualizarDashboard();
 }
-
 function removerLembrete(id) {
-  STATE.lembretes = STATE.lembretes.filter(l => l.id !== id);
+  STATE.lembretes = STATE.lembretes.filter(function(l) { return l.id !== id; });
   salvarState();
   renderLembretes();
   atualizarDashboard();
 }
-
 function renderLembretes() {
-  const lista = document.getElementById('lembretes-lista');
-  const preview = document.getElementById('reminder-preview');
-
+  var lista = document.getElementById('lembretes-lista');
+  var preview = document.getElementById('reminder-preview');
+  var count = document.getElementById('lembretes-count');
+  var dot = document.getElementById('notif-dot');
   if (!STATE.lembretes.length) {
-    lista.innerHTML = '<li class="task-empty">Nenhum lembrete ainda.</li>';
+    if (lista) lista.innerHTML = '<li class="task-empty">Nenhum lembrete ainda.</li>';
     if (preview) preview.innerHTML = '';
-    const count = document.getElementById('lembretes-count');
-    count.textContent = '0';
-    count.classList.remove('visible');
-    document.getElementById('notif-dot').style.display = 'none';
+    if (count) { count.textContent = '0'; count.classList.remove('visible'); }
+    if (dot) dot.style.display = 'none';
     return;
   }
-
-  const sorted = [...STATE.lembretes].sort((a, b) => new Date(a.dataHora) - new Date(b.dataHora));
-
-  lista.innerHTML = sorted.map(l =>
-    '<li class="reminder-full-item">' +
-    '<span class="r-time">' + formatarDataHora(l.dataHora) + '</span>' +
-    '<div><div class="r-title">' + l.titulo + '</div>' +
-    (l.desc ? '<div style="color:#7a8ba8;font-size:12px">' + l.desc + '</div>' : '') +
-    '</div>' +
-    '<button class="r-del" onclick="removerLembrete(' + l.id + ')">&#10005;</button>' +
-    '</li>'
-  ).join('');
-
-  if (preview) {
-    preview.innerHTML = sorted.slice(0, 3).map(l =>
-      '<li class="reminder-item">&#128276; ' + l.titulo + ' &mdash; ' + formatarDataHora(l.dataHora) + '</li>'
-    ).join('');
+  var sorted = STATE.lembretes.slice().sort(function(a,b){ return new Date(a.dataHora) - new Date(b.dataHora); });
+  if (lista) {
+    lista.innerHTML = sorted.map(function(l) {
+      return '<li class="reminder-full-item">' +
+        '<span class="r-time">' + formatarDataHora(l.dataHora) + '</span>' +
+        '<div><div class="r-title">' + l.titulo + '</div>' +
+        (l.desc ? '<div style="color:#7a8ba8;font-size:12px">' + l.desc + '</div>' : '') +
+        '</div>' +
+        '<button class="r-del" onclick="removerLembrete(' + l.id + ')">&#10005;</button>' +
+        '</li>';
+    }).join('');
   }
-
-  const count = document.getElementById('lembretes-count');
-  count.textContent = STATE.lembretes.length;
-  count.classList.add('visible');
-  document.getElementById('notif-dot').style.display = 'block';
+  if (preview) {
+    preview.innerHTML = sorted.slice(0,3).map(function(l) {
+      return '<li class="reminder-item">&#128276; ' + l.titulo + ' &mdash; ' + formatarDataHora(l.dataHora) + '</li>';
+    }).join('');
+  }
+  if (count) { count.textContent = STATE.lembretes.length; count.classList.add('visible'); }
+  if (dot) dot.style.display = 'block';
 }
-
 function formatarDataHora(dt) {
   if (!dt) return '';
-  const d = new Date(dt);
-  return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  try {
+    var d = new Date(dt);
+    return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+  } catch(e) { return dt; }
+}
+function verificarLembretes() {
+  var agora = new Date();
+  STATE.lembretes.forEach(function(l) {
+    var dt = new Date(l.dataHora);
+    var diffMin = (dt - agora) / 60000;
+    if (diffMin > 0 && diffMin < 2 && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      new Notification('SabIA 🔔 ' + l.titulo, { body: l.desc || 'Hora de estudar!' });
+    }
+  });
 }
 
-// ===== FEEDBACK =====
+// FEEDBACK
 async function obterFeedback() {
-  const texto = document.getElementById('inp-feedback').value.trim();
+  var texto = (document.getElementById('inp-feedback').value || '').trim();
   if (!texto) { alert('Escreva sua pergunta ou resposta!'); return; }
-
   showLoading('Analisando e gerando feedback...');
-
+  var nomeAluno = STATE.perfil ? STATE.perfil.nome : 'Aluno';
+  var sys = 'Voce e o SabIA, tutor especializado. Aluno: ' + nomeAluno + '. Forneca feedback educativo, claro e motivador. Corrija erros com explicacao detalhada. Responda em portugues do Brasil.';
   try {
-    const perfil = STATE.perfil ? 'Aluno: ' + (STATE.perfil.nome || 'Aluno') + '. ' : '';
-    const sys = 'Voce e o SabIA, tutor IA especializado. ' + perfil +
-      'Forneca feedback educativo, claro e motivador. Se houver erro, corrija com explicacao detalhada. Se for pergunta, responda com exemplos praticos. Use formatacao clara com emojis. Responda sempre em portugues do Brasil.';
-
-    const result = await chamarIA(texto, sys);
-
-    STATE.chatHistory.push(
-      { role: 'user', content: texto },
-      { role: 'ia', content: result }
-    );
-
+    var result = await chamarIA(texto, sys);
+    STATE.chatHistory.push({ role: 'user', content: texto }, { role: 'ia', content: result });
+    var card = document.getElementById('feedback-result');
+    if (card) card.style.display = 'block';
+    var out = document.getElementById('feedback-output');
+    if (out) out.innerHTML = formatarTextoIA(result);
     renderChat();
-    document.getElementById('feedback-result').style.display = 'block';
-    document.getElementById('feedback-output').innerHTML = formatarTextoIA(result);
-    document.getElementById('inp-feedback').value = '';
-  } catch (e) {
+    var inp = document.getElementById('inp-feedback');
+    if (inp) inp.value = '';
+  } catch(e) {
     mostrarErro('feedback-result', 'Erro: ' + e.message);
-    document.getElementById('feedback-result').style.display = 'block';
+    var fr = document.getElementById('feedback-result');
+    if (fr) fr.style.display = 'block';
   }
-
   hideLoading();
 }
-
 function renderChat() {
-  const hist = document.getElementById('chat-history');
-  hist.innerHTML = STATE.chatHistory.map(m =>
-    '<div class="chat-bubble ' + (m.role === 'user' ? 'user' : 'ia') + '">' +
-    (m.role === 'ia' ? '<strong>SabIA</strong><br>' : '<strong>Voce</strong><br>') +
-    formatarTextoIA(m.content) +
-    '</div>'
-  ).join('');
+  var hist = document.getElementById('chat-history');
+  if (!hist) return;
+  hist.innerHTML = STATE.chatHistory.map(function(m) {
+    return '<div class="chat-bubble ' + (m.role === 'user' ? 'user' : 'ia') + '">' +
+      (m.role === 'ia' ? '<strong>SabIA</strong><br>' : '<strong>Voce</strong><br>') +
+      formatarTextoIA(m.content) + '</div>';
+  }).join('');
   hist.scrollTop = hist.scrollHeight;
 }
 
-// ===== UTILIDADES =====
+// UTILIDADES
 function formatarTextoIA(texto) {
   if (!texto) return '';
   return texto
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/**(.*?)**/g, '<strong>$1</strong>')
-    .replace(/^### (.*$)/gm, '<h3 style="color:rgb(0,200,230);margin:1rem 0 0.4rem;font-size:15px">$1</h3>')
-    .replace(/^## (.*$)/gm, '<h3 style="color:rgb(0,200,230);margin:1rem 0 0.4rem;font-size:15px">$1</h3>')
-    .replace(/^# (.*$)/gm, '<h3 style="color:rgb(0,200,230);margin:1rem 0 0.4rem;font-size:16px">$1</h3>')
-    .replace(/^- (.*$)/gm, '<li style="margin-left:1rem;margin-bottom:4px">$1</li>')
-    .replace(/
-/g, '<br>');
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/^### (.*)$/gm, '<h3 style="color:rgb(0,200,230);margin:1rem 0 0.4rem;font-size:15px">$1</h3>')
+    .replace(/^## (.*)$/gm, '<h3 style="color:rgb(0,200,230);margin:1rem 0 0.4rem;font-size:15px">$1</h3>')
+    .replace(/^# (.*)$/gm, '<h3 style="color:rgb(0,200,230);margin:1rem 0 0.4rem;font-size:16px">$1</h3>')
+    .replace(/^- (.*)$/gm, '<li style="margin-left:1rem;margin-bottom:4px">$1</li>')
+    .replace(/\n/g, '<br>');
 }
-
-function extrairTarefas(texto, materias) {
-  const lista = materias.split(',').map(m => m.trim()).filter(Boolean);
-  const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom'];
-  return lista.map((m, i) => ({
-    id: i,
-    texto: 'Estudar ' + m,
-    done: false,
-    dia: dias[i % 7]
-  }));
+function extrairTarefas(materias) {
+  var lista = (materias || '').split(',').map(function(m){ return m.trim(); }).filter(Boolean);
+  var dias = ['Seg','Ter','Qua','Qui','Sex','Sab','Dom'];
+  return lista.map(function(m, i) { return { id: i, texto: 'Estudar ' + m, done: false, dia: dias[i % 7] }; });
 }
-
 function toggleTarefa(id) {
-  const t = STATE.tarefas.find(t => t.id === id);
-  if (t) {
-    t.done = !t.done;
-    salvarState();
-    atualizarDashboard();
-  }
+  var t = STATE.tarefas.find(function(t){ return t.id === id; });
+  if (t) { t.done = !t.done; salvarState(); atualizarDashboard(); }
 }
-
 function atualizarGrafico() {
-  const bars = document.getElementById('chart-bars');
-  const labels = document.getElementById('chart-labels');
+  var bars = document.getElementById('chart-bars');
+  var labels = document.getElementById('chart-labels');
   if (!bars || !labels) return;
-
-  const ultimos = STATE.evolucao.slice(-7);
+  var ultimos = STATE.evolucao.slice(-7);
   if (!ultimos.length) {
-    bars.innerHTML = '<div style="color:#7a8ba8;font-size:13px;padding:1rem">Nenhum registro de evolucao ainda. Registre seus estudos acima!</div>';
+    bars.innerHTML = '<div style="color:#7a8ba8;font-size:13px;padding:0.5rem">Nenhum registro ainda. Registre seus estudos acima!</div>';
     labels.innerHTML = '';
     return;
   }
-
-  const max = ultimos.length;
-  bars.innerHTML = ultimos.map((e, i) =>
-    '<div class="chart-bar" style="height:' + (30 + Math.round((i / (max || 1)) * 50)) + 'px" title="' + e.data + '"></div>'
-  ).join('');
-  labels.innerHTML = ultimos.map(e =>
-    '<div class="chart-label">' + e.data.slice(0, 5) + '</div>'
-  ).join('');
+  bars.innerHTML = ultimos.map(function(e, i) {
+    var h = 25 + Math.round((i / (ultimos.length - 1 || 1)) * 55);
+    return '<div class="chart-bar" style="height:' + h + 'px" title="' + e.data + '"></div>';
+  }).join('');
+  labels.innerHTML = ultimos.map(function(e) {
+    return '<div class="chart-label">' + e.data.slice(0,5) + '</div>';
+  }).join('');
 }
-
 function atualizarUI() {
-  const p = STATE.perfil;
+  var p = STATE.perfil;
   if (!p) return;
-  const nameEl = document.getElementById('user-name-sidebar');
-  const avatarEl = document.getElementById('user-avatar');
+  var nameEl = document.getElementById('user-name-sidebar');
+  var avatarEl = document.getElementById('user-avatar');
   if (nameEl) nameEl.textContent = p.nome || 'Aluno';
   if (avatarEl) avatarEl.textContent = (p.nome || 'A')[0].toUpperCase();
-  const banner = document.getElementById('welcome-banner');
+  var banner = document.getElementById('welcome-banner');
   if (banner) banner.style.display = 'none';
 }
-
 function atualizarDashboard() {
   atualizarUI();
-
-  const done = STATE.tarefas.filter(t => t.done).length;
-  const total = STATE.tarefas.length;
-  const pct = total ? Math.round((done / total) * 100) : 0;
-
-  const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-
+  var done = STATE.tarefas.filter(function(t){ return t.done; }).length;
+  var total = STATE.tarefas.length;
+  var pct = total ? Math.round((done / total) * 100) : 0;
+  function setEl(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; }
   setEl('stat-tarefas', done);
   setEl('stat-tarefas-delta', 'de ' + total + ' planejadas');
   setEl('stat-progresso', pct + '%');
   setEl('stat-horas', (STATE.evolucao.length * 2) + 'h');
   setEl('stat-streak', '🔥 ' + (STATE.streak + STATE.evolucao.length));
-
-  const barFill = document.getElementById('mini-bar-fill');
+  var barFill = document.getElementById('mini-bar-fill');
   if (barFill) barFill.style.width = pct + '%';
-
-  const hoje = document.getElementById('today-tasks');
+  var hoje = document.getElementById('today-tasks');
   if (hoje && STATE.tarefas.length) {
-    hoje.innerHTML = STATE.tarefas.slice(0, 5).map(t =>
-      '<li class="task-item ' + (t.done ? 'done' : '') + '" onclick="toggleTarefa(' + t.id + ')">' +
-      '<div class="task-check">' + (t.done ? '&#10003;' : '') + '</div>' +
-      '<span>' + t.texto + '</span>' +
-      '<span style="margin-left:auto;font-size:11px;color:#7a8ba8">' + t.dia + '</span>' +
-      '</li>'
-    ).join('');
+    hoje.innerHTML = STATE.tarefas.slice(0,5).map(function(t) {
+      return '<li class="task-item ' + (t.done ? 'done' : '') + '" onclick="toggleTarefa(' + t.id + ')">' +
+        '<div class="task-check">' + (t.done ? '&#10003;' : '') + '</div>' +
+        '<span>' + t.texto + '</span>' +
+        '<span style="margin-left:auto;font-size:11px;color:#7a8ba8">' + t.dia + '</span>' +
+        '</li>';
+    }).join('');
   }
-
   renderLembretes();
   atualizarGrafico();
 }
-
-// ===== INIT =====
-document.addEventListener('DOMContentLoaded', () => {
-  atualizarDashboard();
-
-  if (!STATE.perfil) {
-    setTimeout(openOnboarding, 600);
-  }
-
-  // Verificar lembretes proximos (a cada minuto)
-  setInterval(() => {
-    const agora = new Date();
-    STATE.lembretes.forEach(l => {
-      const dt = new Date(l.dataHora);
-      const diffMin = (dt - agora) / 60000;
-      if (diffMin > 0 && diffMin < 2) {
-        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-          new Notification('SabIA 🔔 ' + l.titulo, { body: l.desc || 'Hora de estudar!' });
-        }
-      }
-    });
-  }, 60000);
-
-  if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-    Notification.requestPermission();
-  }
-});
