@@ -1,17 +1,30 @@
-// SabIA — api/chat.js (Vercel Serverless Function)
-export default async function handler(req, res) {
-  // CORS
+// SabIA — api/chat.js (Vercel Serverless Function - Node 20)
+module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { prompt, systemPrompt } = req.body;
-  if (!prompt) return res.status(400).json({ error: 'Prompt obrigatório' });
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { prompt, systemPrompt } = req.body || {};
+
+  if (!prompt) {
+    return res.status(400).json({ error: 'Prompt obrigatorio' });
+  }
 
   const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-  if (!ANTHROPIC_API_KEY) return res.status(500).json({ error: 'API Key não configurada' });
+
+  if (!ANTHROPIC_API_KEY) {
+    return res.status(500).json({
+      error: 'ANTHROPIC_API_KEY nao configurada. Va em Vercel > Settings > Environment Variables e adicione a chave.'
+    });
+  }
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -24,22 +37,27 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1500,
-        system: systemPrompt || 'Você é o SabIA, um assistente educacional inteligente, empático e motivador.',
-        messages: [{ role: 'user', content: prompt }]
+        system: systemPrompt || 'Voce e o SabIA, um assistente educacional inteligente, empatico e motivador. Responda sempre em portugues do Brasil.',
+        messages: [
+          { role: 'user', content: prompt }
+        ]
       })
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-      const err = await response.json();
-      return res.status(response.status).json({ error: err.error?.message || 'Erro na Anthropic API' });
+      console.error('Anthropic API error:', data);
+      return res.status(response.status).json({
+        error: data.error?.message || 'Erro na API da Anthropic'
+      });
     }
 
-    const data = await response.json();
     const result = data.content?.[0]?.text || '';
     return res.status(200).json({ result });
 
   } catch (error) {
-    console.error('SabIA API Error:', error);
-    return res.status(500).json({ error: 'Erro interno do servidor' });
+    console.error('SabIA handler error:', error);
+    return res.status(500).json({ error: 'Erro interno: ' + error.message });
   }
-}
+};
